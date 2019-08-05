@@ -1,0 +1,109 @@
+<template>
+    <div class="diskMain">
+        <div class="diskMain_level">
+            <p v-for="level in folderLevel" :key="level.id">
+                <span @click="folderEnter(level)">{{level.name}}</span> > 
+            </p>
+        </div>
+        <el-table ref="multipleTable" :data="tableData" tooltip-effect="dark" style="width: 100%"
+            @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="55">
+            </el-table-column>
+            <el-table-column label="文件名" sortable show-overflow-tooltip>
+                <template slot-scope="scope">
+                    <i v-show="scope.row.type === 'folder'" class="el-icon-folder"></i>
+                    <i v-show="scope.row.type === 'file'" class="el-icon-tickets"></i>
+                    <span @click="folderEnter(scope.row)"
+                        :class="{diskMain_name: scope.row.type === 'folder'}">{{ scope.row.name }}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="size" label="大小" width="100" sortable>
+            </el-table-column>
+            <el-table-column prop="updateTime" label="更新时间" width="200" sortable>
+            </el-table-column>
+        </el-table>
+    </div>
+</template>
+
+<script>
+    import Vue from "vue";
+    import { Table, TableColumn } from "element-ui";
+    Vue.use(Table)
+    Vue.use(TableColumn)
+    export default {
+        name: 'DiskMain',
+        props: {
+            selectEmit: Function
+        },
+        data() {
+            return {
+                folderLevel: [{
+                    name: '全部文件',
+                    id: '1'
+                }],
+                tableData: this.getMatchId(),
+                multipleSelection: []
+            }
+        },
+        computed: {},
+        methods: {
+            handleSelectionChange(val) { //处理勾选事件
+                this.multipleSelection = val;
+                this.selectEmit({isShow: val.length > 0, selectList: val}); //通信(子传父-再传子)
+            },
+            getMatchId() { //匹配当前目录下的所有文件
+                let query = this.$route.query.path;
+                let topFolder = this.$store.state.diskContent.children || [];
+                if (query) {
+                    let matchId = query.split('>');
+                    return this.matchFolder(matchId, 0, topFolder);
+                }
+                else {
+                    return topFolder;
+                }
+            },
+            matchFolder(matchId, index, folders) {
+            },
+            folderEnter(row) {
+                if (row.type === 'folder') {
+                    this.tableData = row.children || [];
+                }
+            }
+        }
+    }
+</script>
+
+<!-- Add "scoped" attribute to limit CSS to this component only -->
+<style>
+    .diskMain_name {
+        cursor: pointer;
+    }
+
+    .diskMain_name:hover {
+        color: #409EFF;
+    }
+
+    .diskMain .el-icon-folder {
+        color: #FFD659;
+        margin-right: 10px;
+    }
+
+    .diskMain .el-icon-tickets {
+        color: #63C422;
+        margin-right: 10px;
+    }
+    .diskMain_level p{
+        display: inline-block;
+        color: #999;
+    }
+    .diskMain_level p span{
+        display: inline-block;
+        color: #409EFF;
+        cursor: pointer;
+        font-size: 14px;
+        border-bottom: 1px solid #FFF;
+    }
+    .diskMain_level p span:hover{
+        border-color: #409EFF;
+    }
+</style>

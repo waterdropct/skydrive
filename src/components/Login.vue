@@ -9,7 +9,8 @@
                 <el-input v-model="ruleForm.pwd" placeholder="请输入密码" show-password clearable></el-input>
             </el-form-item>
             <el-form-item>
-                <el-button type="primary" :loading=loading width="100%" size="small" @click="submitForm('ruleForm')">登陆</el-button>
+                <el-button type="primary" :loading=loading width="100%" size="small" @click="submitForm('ruleForm')">登陆
+                </el-button>
             </el-form-item>
         </el-form>
     </div>
@@ -53,8 +54,9 @@
                             center: true
                         });
                         sessionStorage.setItem("userAccess", JSON.stringify(true));
+                        this.$store.commit("login");
                         this.loading = false;
-                        this.$router.push("/skydrive");
+                        this.$router.push("/cloud");
                     } else {
                         return false;
                     }
@@ -66,11 +68,11 @@
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-    .login{
+    .login {
         width: 300px;
         border-radius: 3px;
         background: #fff;
-        box-shadow: rgba(0,0,0,0.3) 0 0 50px;
+        box-shadow: rgba(0, 0, 0, 0.3) 0 0 50px;
         padding: 10px 20px;
         position: absolute;
         top: 50%;
@@ -78,10 +80,12 @@
         margin-left: -150px;
         margin-top: -130px;
     }
-    .login__title{
+
+    .login__title {
         text-align: center;
     }
-    .el-button--small{
+
+    .el-button--small {
         width: 100%;
     }
 </style>
