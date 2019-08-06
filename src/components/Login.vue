@@ -18,6 +18,7 @@
 
 <script>
     import Vue from "vue";
+    import http from "../http.js";
     import { Form, FormItem, Input, Button } from "element-ui";
     Vue.use(Form)
     Vue.use(FormItem)
@@ -27,6 +28,13 @@
         name: 'Login',
         props: {},
         data() {
+            if (this.$router.query) {
+                this.$message({
+                    message: '认证失效，请重新登陆',
+                    type: 'success',
+                    center: true
+                });
+            }
             return {
                 loading: false,
                 ruleForm: {
@@ -48,15 +56,17 @@
                 this.$refs[formName].validate((valid) => {
                     if (valid) {
                         this.loading = true;
-                        this.$message({
-                            message: '登陆成功,正在跳转...',
-                            type: 'success',
-                            center: true
-                        });
-                        sessionStorage.setItem("userAccess", JSON.stringify(true));
-                        this.$store.commit("login");
-                        this.loading = false;
-                        this.$router.push("/cloud");
+                        http.postService('userlogin', JSON.stringify(this.ruleForm)).then( res => {
+                            console.log(res);
+                            this.$message({
+                                message: '登陆成功,正在跳转...',
+                                type: 'success',
+                                center: true
+                            });
+                            this.$store.dispatch('UserLogin', {token: 'sdfsd', userName: 'hc Lei'});
+                            this.loading = false;
+                            this.$router.push("/cloud");
+                        })
                     } else {
                         return false;
                     }

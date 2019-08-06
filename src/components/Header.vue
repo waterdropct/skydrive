@@ -34,12 +34,11 @@
       handleUser(item) {
         if (item === "logout") {
           this.$message({
-            message: '注销成功,正在跳转...',
+            message: '注销成功',
             type: 'success',
             center: true
           });
-          sessionStorage.setItem("userAccess", "");
-          this.$store.commit("logout");
+          this.$store.dispatch('UserLogout');
           this.$router.push("/");
         }
       }
