@@ -6,7 +6,7 @@
     <div v-if="hasAuth" class="header__user">
       <el-dropdown @command="handleUser">
         <span class="el-dropdown-link">
-          hechao Lei<i class="el-icon-arrow-down el-icon--right"></i>
+          {{userName}}<i class="el-icon-arrow-down el-icon--right"></i>
         </span>
         <el-dropdown-menu slot="dropdown">
           <el-dropdown-item command="logout" icon="el-icon-setting">注销</el-dropdown-item>
@@ -18,7 +18,7 @@
 
 <script>
   import Vue from "vue";
-  import { Dropdown, DropdownMenu, DropdownItem } from "element-ui";
+  import { Dropdown, DropdownMenu, DropdownItem, Message } from "element-ui";
   Vue.use(Dropdown)
   Vue.use(DropdownMenu)
   Vue.use(DropdownItem)
@@ -26,14 +26,17 @@
     name: 'Header',
     props: {},
     computed: {
-      hasAuth: function(){
-        return this.$store.state.isAuth
+      hasAuth: function () {
+        return this.$store.state.token
+      },
+      userName: function(){
+        return this.$store.state.userName
       }
     },
     methods: {
       handleUser(item) {
         if (item === "logout") {
-          this.$message({
+          Message({
             message: '注销成功',
             type: 'success',
             center: true
