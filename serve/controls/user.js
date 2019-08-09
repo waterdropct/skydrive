@@ -14,17 +14,17 @@ const findUser = (username) => {
     });
 };
 //添加账号密码专用操作
-const addUser = (name, pwd) => {
-    var newData = new user({name: name, pwd: pwd, createTime: new Date().getTime()});
-    newData.save(function(){});
-}
+// const addUser = (name, pwd) => {
+//     var newData = new user({name: name, pwd: pwd, createTime: new Date().getTime()});
+//     newData.save(function(){});
+// }
 //登录
 const login = async (ctx) => {
     //拿到账号和密码
-    let username = ctx.request.body.name;
-    let password = sha1(ctx.request.body.pwd);
+    const username = ctx.request.body.name;
+    const password = sha1(ctx.request.body.pwd);
     //addUser(username, password);
-    let doc = await findUser(username);
+    const doc = await findUser(username);
     ctx.status = 200;
     if (!doc) {
         ctx.body = {

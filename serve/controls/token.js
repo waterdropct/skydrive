@@ -16,13 +16,23 @@ const createToken = user => {
 const checkToken = async (ctx, next) => {
     const authToken = ctx.get('skyAuth');
     if (!authToken) {
-        ctx.throw(401, 'failed Auth');
+        ctx.status = 401;
+        ctx.body = {
+            status: "error",
+            message: "身份认证失败"
+        };
+        return
     }
     const token = authToken.slice(3);
     try {
         await jwt.verify(token, 'skydrivelhc'); //如果校验不通过，会抛出异常
     } catch (err) {
-        ctx.throw(401, 'failed Auth');
+        ctx.status = 401;
+        ctx.body = {
+            status: "error",
+            message: "身份认证失败"
+        };
+        return
     }
     await next();
 }
