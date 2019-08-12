@@ -73,13 +73,12 @@ const upload = async (ctx) => {
     const fileName = Math.round(new Date().getTime() / 1000).toString() + encodeURI(file.name); //上传文件涉及到中文，需要编码;目前以时间戳前10位来区别同名文件
     const wirter = fs.createWriteStream(filePath + fileName);
     reader.pipe(wirter);
-    const foldId = ctx.request.query.foldId;
     const newFile = {
         name: fileName,
         type: 'file',
         size: file.size,
         updateTime: new Date().getTime(),
-        parId: foldId
+        parId: ctx.request.body.foldId
     }
     let doc = await addList(newFile);
     ctx.status = 200;
