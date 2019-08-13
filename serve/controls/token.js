@@ -7,7 +7,7 @@ const createToken = user => {
         },
         'skydrivelhc',
         {
-            expiresIn: '10m'
+            expiresIn: 1000 * 60 * 10
         }
     );
     return token;

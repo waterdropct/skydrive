@@ -21,11 +21,20 @@ instance.interceptors.request.use(
 //respone拦截器
 instance.interceptors.response.use(
     response => {
+        //status==200统一提示(对于不希望提示的某些操作，则判断是否有message)
+        const tip = response.data.message;
+        if(tip){
+            Message({
+                message: response.data.message,
+                type: response.data.status,
+                center: true
+            });
+        }
         return response.data;
     },
     error => { //错误处理
         if (error.response) {
-            //错误弹窗统一提示
+            //错误状态码统一提示
             Message({
                 message: error.response.statusText,
                 type: 'error',
@@ -39,6 +48,13 @@ instance.interceptors.response.use(
                         query: { redirect: router.currentRoute.fullPath } // 将跳转的路由path作为参数，登录成功后跳转到该路由
                     });
             }
+        }else{
+            //网络错误统一提示
+            Message({
+                message: error,
+                type: 'error',
+                center: true
+            });
         }
         return Promise.reject(error.response);
     }

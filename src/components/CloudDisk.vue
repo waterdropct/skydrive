@@ -1,30 +1,30 @@
 <template>
     <div class="cloudDisk">
-        <DiskMenu :showEditMenu="showEditMenu" :curFoldId="curFoldId" @cloud_list_handel="handelList" />
+        <DiskMenu :showEditMenu="showEditMenu" :curFoldId="curFoldId" :checkList="multipleSelection" @cloud_list_handel="handelList" />
         <div class="diskMain">
-                <div class="diskMain_level">
-                    <p v-for="level in folderLevel" :key="level.id">
-                        <span @click="folderEnter(level)">{{level.name}}</span> >
-                    </p>
-                </div>
-                <el-table ref="multipleTable" :data="tableData" tooltip-effect="dark" style="width: 100%"
-                    @selection-change="handleSelectionChange">
-                    <el-table-column type="selection" width="55">
-                    </el-table-column>
-                    <el-table-column label="文件名" sortable show-overflow-tooltip>
-                        <template slot-scope="scope">
-                            <i v-show="scope.row.type === 'folder'" class="el-icon-folder"></i>
-                            <i v-show="scope.row.type === 'file'" class="el-icon-tickets"></i>
-                            <span @click="folderEnter(scope.row)"
-                                :class="{diskMain_name: scope.row.type === 'folder'}">{{ scope.row.name }}</span>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="size" label="大小" width="100" sortable>
-                    </el-table-column>
-                    <el-table-column prop="updateTime" label="更新时间" width="200" sortable>
-                    </el-table-column>
-                </el-table>
+            <div class="diskMain_level">
+                <p v-for="{_id, name} in folderLevel" :key="_id">
+                    <span @click="folderPop(_id)">{{name}}</span>>
+                </p>
             </div>
+            <el-table ref="multipleTable" :data="tableData" tooltip-effect="dark" width="100%" height="calc(100vh - 180px)" v-loading="loading"
+                @selection-change="handleSelectionChange">
+                <el-table-column type="selection" width="55">
+                </el-table-column>
+                <el-table-column label="文件名" sortable show-overflow-tooltip>
+                    <template slot-scope="scope">
+                        <i v-show="scope.row.type === 'folder'" class="el-icon-folder"></i>
+                        <i v-show="scope.row.type === 'file'" class="el-icon-tickets"></i>
+                        <span @click="folderEnter(scope.row)"
+                            :class="{diskMain_name: scope.row.type === 'folder'}">{{ scope.row.name }}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="size" label="大小" width="100" sortable>
+                </el-table-column>
+                <el-table-column prop="updateTime" label="更新时间" width="200" sortable>
+                </el-table-column>
+            </el-table>
+        </div>
     </div>
 </template>
 
@@ -32,21 +32,23 @@
     import Vue from "vue";
     import http from "../http.js";
     import { timeToString } from '../utils/dateutil.js';
-    import { Table, TableColumn } from "element-ui";
+    import { Table, TableColumn, Loading } from "element-ui";
     Vue.use(Table)
     Vue.use(TableColumn)
+    Vue.use(Loading)
     import DiskMenu from './DiskMenu.vue'
     export default {
         name: 'CloudDisk',
         props: {},
-        data(){
+        data() {
             return {
                 showEditMenu: false, //是否展示操作菜单
                 curFoldId: "", //当前所在目录
                 folderLevel: [{
                     name: '全部文件',
-                    id: '1'
+                    _id: ''
                 }],
+                loading: false,
                 tableData: [],
                 multipleSelection: []
             }
@@ -64,31 +66,58 @@
                 this.showEditMenu = val.length > 0 ? true : false;
             },
             handelList(res) { //监听菜单的操作
-                switch(res.type){
+                switch (res.type) {
                     case 'uploadOk':
                         this.getCloudList(this.curFoldId);
+                        break
+                    case 'addFoldOk':
+                        this.getCloudList(this.curFoldId);
+                        break
+                    case 'deleteOk':
+                        this.getCloudList(this.curFoldId);
+                        break
                 }
 
             },
             getCloudList(id) { //查找当前目录下的所有文件
+                this.loading = true;
                 http.getService('cloudlist?foldId=' + id).then(res => {
                     var data = [];
-                    if(res.status == "success"){
+                    if (res.status == "success") {
                         var oriData = res.data || [];
                         oriData.forEach(item => {
-                            item.name = decodeURI(item.name.slice(10)); //去掉唯一时间戳并对中文解码
+                            if (item.type == 'file') {//对于file类型的去掉唯一时间戳并对中文解码
+                                item.name = decodeURI(item.name.slice(10));
+                            }
                             item.updateTime = timeToString(item.updateTime); //将时间戳转换成yyyy-mm-dd
                         });
                         data = oriData;
                     }
                     this.tableData = data;
+                    this.loading = false;
                 }).catch(err => {
+                    this.loading = false;
                 })
             },
-            folderEnter(row) {
-                if (row.type === 'folder') {
-                    this.tableData = row.children || [];
+            folderEnter(row) { //进入下级目录
+                if (row.type === 'folder') { //文件类型才支持点击查询操作
+                    this.curFoldId = row._id;
+                    this.getCloudList(row._id);
+                    const {_id, name} = row;
+                    this.folderLevel.push({_id, name});
                 }
+            },
+            folderPop(foldId) { //返回上层目录
+                let index = 0;
+                for(let k = 0; k < this.folderLevel.length; k++){
+                    if(foldId == this.folderLevel[k]._id){
+                        index = k;
+                        break
+                    }
+                }
+                this.folderLevel.splice(index+1);
+                this.curFoldId = foldId;
+                this.getCloudList(foldId);
             }
         }
     }
@@ -100,6 +129,7 @@
         width: auto;
         margin: 0 20px;
     }
+
     .diskMain_name {
         cursor: pointer;
     }
@@ -129,6 +159,7 @@
         cursor: pointer;
         font-size: 14px;
         border-bottom: 1px solid #FFF;
+        margin: 0px 5px;
     }
 
     .diskMain_level p span:hover {

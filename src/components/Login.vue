@@ -50,11 +50,6 @@
                     if (valid) {
                         this.loading = true;
                         http.postService('userlogin', JSON.stringify(this.ruleForm)).then( res => {
-                            Message({
-                                message: res.message,
-                                type: res.status,
-                                center: true
-                            });
                             this.$store.dispatch('UserLogin', {token: res.token, userName: this.ruleForm.name});
                             this.loading = false;
                             this.$router.push("/cloud");
