@@ -1,10 +1,10 @@
 <template>
     <div class="cloudDisk">
-        <DiskMenu :showEditMenu="showEditMenu" :curFoldId="curFoldId" :checkList="multipleSelection" @cloud_list_handel="handelList" />
+        <DiskMenu :showEditMenu="showEditMenu" :curFoldId="curFoldId" :pathRoot="pathRoot" :checkList="multipleSelection" @cloud_list_handel="handelList" />
         <div class="diskMain">
             <div class="diskMain_level">
-                <p v-for="{_id, name} in folderLevel" :key="_id">
-                    <span @click="folderPop(_id)">{{name}}</span>>
+                <p v-for="{_id, name, pathRoot} in folderLevel" :key="_id">
+                    <span @click="folderPop(_id, pathRoot)">{{name}}</span>>
                 </p>
             </div>
             <el-table ref="multipleTable" :data="tableData" tooltip-effect="dark" width="100%" height="calc(100vh - 180px)" v-loading="loading"
@@ -44,6 +44,7 @@
             return {
                 showEditMenu: false, //是否展示操作菜单
                 curFoldId: "", //当前所在目录
+                pathRoot: [], //当前路径
                 folderLevel: [{
                     name: '全部文件',
                     _id: ''
@@ -102,12 +103,13 @@
             folderEnter(row) { //进入下级目录
                 if (row.type === 'folder') { //文件类型才支持点击查询操作
                     this.curFoldId = row._id;
+                    this.pathRoot = row.pathRoot;
                     this.getCloudList(row._id);
-                    const {_id, name} = row;
-                    this.folderLevel.push({_id, name});
+                    const {_id, name, pathRoot} = row;
+                    this.folderLevel.push({_id, name, pathRoot});
                 }
             },
-            folderPop(foldId) { //返回上层目录
+            folderPop(foldId, pathRoot) { //返回上层目录
                 let index = 0;
                 for(let k = 0; k < this.folderLevel.length; k++){
                     if(foldId == this.folderLevel[k]._id){
@@ -117,6 +119,7 @@
                 }
                 this.folderLevel.splice(index+1);
                 this.curFoldId = foldId;
+                this.pathRoot = pathRoot;
                 this.getCloudList(foldId);
             }
         }

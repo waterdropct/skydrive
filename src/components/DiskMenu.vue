@@ -1,16 +1,16 @@
 <template>
     <div class="diskMenu">
-        <div title="" class="cloud__upload"><input name="file" @change="uploadFile($event)" type="file" /></div>
+        <div title="" class="cloud__upload"><input name="file" value="upload" @change="uploadFile($event)" type="file" /></div>
         <el-button type="primary" size="small" icon="el-icon-upload">上传</el-button>
         <el-button type="primary" size="small" icon="el-icon-folder-add" @click="addFolder" plain>新建文件夹</el-button>
         <el-button type="warning" size="small" icon="el-icon-goods">回收站</el-button>
         <div v-show="showEditMenu" class="diskMenu__edit">
             <el-button-group>
                 <el-tooltip class="item" effect="dark" content="复制到" placement="bottom">
-                    <el-button size="small" icon="el-icon-copy-document"></el-button>
+                    <el-button size="small" icon="el-icon-copy-document" @click="openDialog(true)"></el-button>
                 </el-tooltip>
                 <el-tooltip class="item" effect="dark" content="移动到" placement="bottom">
-                    <el-button size="small" icon="el-icon-scissors"></el-button>
+                    <el-button size="small" icon="el-icon-scissors" @click="openDialog(false)"></el-button>
                 </el-tooltip>
                 <el-tooltip class="item" effect="dark" content="删除" placement="bottom">
                     <el-button size="small" icon="el-icon-delete" @click="deleteList"></el-button>
@@ -18,8 +18,16 @@
             </el-button-group>
         </div>
         <div v-show="showProgress" class="upload__progress">
-            <el-progress :text-inside="true" :stroke-width="20" :percentage=percent status="success"></el-progress>
+            <el-progress :percentage=percent status="success"></el-progress>
         </div>
+        <el-dialog title="选择目录" :visible.sync="dialogVisible" :destroy-on-close="true" :close-on-click-modal="false">
+            <el-tree :data="treeData" :props="treeProps" :expand-on-click-node="false" @node-click="treeNodeClick">
+            </el-tree>
+            <div slot="footer" class="dialog-footer">
+                <el-button @click="dialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="confirmMove">确 定</el-button>
+            </div>
+        </el-dialog>
     </div>
 </template>
 
@@ -27,11 +35,13 @@
     import Vue from "vue";
     import http from "../http.js";
     import store from '../store.js';
-    import { Button, ButtonGroup, Tooltip, Progress, Message, MessageBox } from "element-ui";
+    import { Button, ButtonGroup, Tooltip, Progress, Message, MessageBox, Dialog, Tree } from "element-ui";
     Vue.use(Button)
     Vue.use(ButtonGroup)
     Vue.use(Tooltip)
     Vue.use(Progress)
+    Vue.use(Dialog)
+    Vue.use(Tree)
 
     const messageShow = (type, msg, _this) => {
         Message({
@@ -46,23 +56,52 @@
             }, 2000)
         }
     }
+    const generTreeData = (parId, oriData) => {
+        let res = [];
+        for(let k = 0; k < oriData.length; k++){
+            if(oriData[k].parId == parId){
+                let obj = {
+                    name: oriData[k].name,
+                    _id: oriData[k]._id,
+                    pathRoot: oriData[k].pathRoot,
+                }
+                obj.children = generTreeData(oriData[k]._id, oriData);
+                res.push(obj)
+            }
+        }
+        return res
+    }
     export default {
         name: 'DiskMenu',
         props: {
             showEditMenu: Boolean,
             curFoldId: String,
+            pathRoot: Array,
             checkList: Array
         },
         data() {
             return {
                 showProgress: false,
-                percent: 0
+                percent: 0,
+                dialogVisible: false, //弹出目录层级
+                copyOrmove: true, //true表示copy，false表示move
+                treeProps: {
+                    label: 'name',
+                    children: 'children'
+                },
+                treeData: [{
+                    name: '全部目录',
+                    _id: '',
+                    children: []
+                }],
+                hasClickNode: null
             }
         },
         computed: {},
         methods: {
             uploadFile: function (e) { //上传文件
-                const file = e.target.files[0];
+                const document = e.target;
+                const file = document.files[0];
                 if (file.size > 2 * 1000 * 1000) {
                     messageShow('error', '文件大小不能超过2M');
                     return
@@ -72,16 +111,20 @@
                 let formData = new FormData();
                 formData.append('file', file);
                 formData.append('foldId', this.curFoldId);
+                formData.append('pathRoot', this.pathRoot.concat(this.curFoldId));
                 let xhr = new XMLHttpRequest();
                 xhr.open('post', 'http://localhost:3000/api/uploadfile');
                 xhr.setRequestHeader('skyAuth', `aut${store.state.token}`); //涉及到认证，需要自定义header头部
                 xhr.onreadystatechange = function (e) {
                     if (xhr.readyState == 4 && xhr.status == 200) {
-                        messageShow('success', '上传成功', _this);
+                        const response = JSON.parse(xhr.responseText);
+                        messageShow(response.status, response.message, _this);
                         _this.$emit('cloud_list_handel', { type: 'uploadOk' });
+                        document.value = ""; //需要清除value，否则第二次选择同样文件时无反应
                     }
                     if (xhr.readyState == 4 && xhr.status !== 200) {
                         messageShow('error', '上传失败：' + e.target.statusText, _this);
+                        document.value = "";
                     }
                 };
                 xhr.upload.onprogress = function (e) { //进度条
@@ -91,6 +134,7 @@
                 }
                 xhr.upload.onerror = function (err) {
                     messageShow('error', '网络连接失败', _this);
+                    document.value = "";
                 }
                 xhr.send(formData);
                 _this.showProgress = true;
@@ -110,7 +154,7 @@
                         }
                     }
                 }).then(({ value }) => {
-                    http.postService('addfold', JSON.stringify({ foldname: value, parId: this.curFoldId })).then(res => {
+                    http.postService('addfold', JSON.stringify({ foldname: value, parId: this.curFoldId, pathRoot: this.pathRoot.concat(this.curFoldId)})).then(res => {
                         if (res.status == 'success') {
                             this.$emit('cloud_list_handel', { type: 'addFoldOk' });
                         }
@@ -123,7 +167,7 @@
                     cancelButtonText: '取消',
                     type: 'warning'
                 }).then(() => {
-                    const deleteArr = this.checkList.map( item => {
+                    const deleteArr = this.checkList.map(item => {
                         return item._id
                     })
                     http.postService('deletelist', JSON.stringify({ deletelist: deleteArr })).then(res => {
@@ -131,7 +175,33 @@
                             this.$emit('cloud_list_handel', { type: 'deleteOk' });
                         }
                     }).catch(err => { })
-                }).catch(() => {});
+                }).catch(() => { });
+            },
+            openDialog: function (isCopy) {
+                //查找所有的目录并组装成tree
+                http.getService('cloudlist?foldall=').then(res => {
+                    var data = [];
+                    if (res.status == "success") {
+                        this.treeData[0].children = generTreeData('', res.data);
+                    }
+                }).catch(err => {
+                })
+                this.dialogVisible = true;
+                if (isCopy) {
+                    this.copyOrmove = true;
+                } else {
+                    this.copyOrmove = false;
+                }
+            },
+            treeNodeClick: function(data){
+                this.hasClickNode = data._id;
+            },
+            confirmMove: function () { //移动或者复制操作
+                if(this.hasClickNode === null){
+                    messageShow('warning', '请选择目录');
+                }else{
+                    this.dialogVisible = false;
+                }
             }
         }
     }
@@ -166,8 +236,8 @@
     }
 
     .upload__progress {
-        display: inline-block;
-        width: 500px;
-        margin-left: 10px;
+        width: 100%;
+        position: absolute;
+        top: 37px;
     }
 </style>
