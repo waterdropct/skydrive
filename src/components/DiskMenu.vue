@@ -6,11 +6,8 @@
         <el-button type="warning" size="small" icon="el-icon-goods">回收站</el-button>
         <div v-show="showEditMenu" class="diskMenu__edit">
             <el-button-group>
-                <el-tooltip class="item" effect="dark" content="复制到" placement="bottom">
-                    <el-button size="small" icon="el-icon-copy-document" @click="openDialog(true)"></el-button>
-                </el-tooltip>
                 <el-tooltip class="item" effect="dark" content="移动到" placement="bottom">
-                    <el-button size="small" icon="el-icon-scissors" @click="openDialog(false)"></el-button>
+                    <el-button size="small" icon="el-icon-scissors" @click="openDialog()"></el-button>
                 </el-tooltip>
                 <el-tooltip class="item" effect="dark" content="删除" placement="bottom">
                     <el-button size="small" icon="el-icon-delete" @click="deleteList"></el-button>
@@ -84,7 +81,6 @@
                 showProgress: false,
                 percent: 0,
                 dialogVisible: false, //弹出目录层级
-                copyOrmove: true, //true表示copy，false表示move
                 treeProps: {
                     label: 'name',
                     children: 'children'
@@ -92,6 +88,7 @@
                 treeData: [{
                     name: '全部目录',
                     _id: '',
+                    pathRoot: [],
                     children: []
                 }],
                 hasClickNode: null
@@ -177,7 +174,7 @@
                     }).catch(err => { })
                 }).catch(() => { });
             },
-            openDialog: function (isCopy) {
+            openDialog: function () {
                 //查找所有的目录并组装成tree
                 http.getService('cloudlist?foldall=').then(res => {
                     var data = [];
@@ -186,22 +183,31 @@
                     }
                 }).catch(err => {
                 })
+                this.hasClickNode = null;
                 this.dialogVisible = true;
-                if (isCopy) {
-                    this.copyOrmove = true;
-                } else {
-                    this.copyOrmove = false;
-                }
             },
             treeNodeClick: function(data){
-                this.hasClickNode = data._id;
+                this.hasClickNode = data;
             },
-            confirmMove: function () { //移动或者复制操作
-                if(this.hasClickNode === null){
+            confirmMove: function () { //移动操作
+                if(!this.hasClickNode){
                     messageShow('warning', '请选择目录');
-                }else{
-                    this.dialogVisible = false;
+                    return
                 }
+                if(this.hasClickNode._id == this.curFoldId){
+                    messageShow('warning', '不可选择自身所处目录');
+                    return
+                }
+                this.dialogVisible = false;
+                    const moveArr = this.checkList.map(item => {
+                        return item._id
+                    })
+                    const curPath = this.checkList[0].pathRoot;
+                    http.postService('movelist', JSON.stringify({ targetId: this.hasClickNode._id, targetPath: this.hasClickNode.pathRoot, movelist: moveArr, curPath})).then(res => {
+                        if (res.status == 'success') {
+                            this.$emit('cloud_list_handel', { type: 'moveOk' });
+                        }
+                    }).catch(err => { })
             }
         }
     }

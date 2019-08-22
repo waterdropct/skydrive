@@ -25,9 +25,9 @@ const addList = (file) => {
     })
 };
 //更新文件夹或者文件名称
-const updateList = (file) => {
+const updateList = (queryObj, updateObj) => {
     return new Promise((resolve, reject) => {
-        cloudlist.update({ _id: file._id }, { $set: { name: file.name } }, (err, doc) => {
+        cloudlist.update(queryObj, updateObj, {multi: true}, (err, doc) => {
             if (err) {
                 reject(err);
             }
@@ -80,18 +80,13 @@ const findList = async (ctx) => {
 const uploadFile = async (ctx) => {
     const file = ctx.request.files.file;
     //校验数据库中是否已存在同名
-    let validRes = await validSameName({parId: ctx.request.body.foldId, name: new RegExp('\\d{10}' + encodeURI(file.name)), type: 'file'});
+    let validRes = await validSameName({parId: ctx.request.body.foldId, name: file.name, type: 'file'});
     if(validRes){
         ctx.body = validRes;
         return
     }
-    const reader = fs.createReadStream(file.path);
-    const filePath = path.resolve(__dirname, '..') + '/static/upload/';
-    const fileName = Math.round(new Date().getTime() / 1000).toString() + encodeURI(file.name); //上传文件涉及到中文，需要编码;目前以时间戳前10位来区别同名文件
-    const wirter = fs.createWriteStream(filePath + fileName);
-    reader.pipe(wirter);
     const newFile = {
-        name: fileName,
+        name: file.name,
         type: 'file',
         size: file.size,
         updateTime: new Date().getTime(),
@@ -104,6 +99,13 @@ const uploadFile = async (ctx) => {
         status: doc ? "success" : "error",
         message: doc ? "上传文件成功" : "上传文件失败",
         data: doc || []
+    }
+    //存入磁盘
+    if(doc){
+        const reader = fs.createReadStream(file.path);
+        const filePath = path.resolve(__dirname, '..') + '/static/upload/';
+        const wirter = fs.createWriteStream(filePath + doc._id);
+        reader.pipe(wirter); 
     }
 };
 //新建文件夹
@@ -155,10 +157,16 @@ const deletefile = async (ctx) => {
         let filesArr = []; //删除文件则需要移除磁盘文件
         let mapId = doc.map(item => {
             if(item.type == "file"){
-                filesArr.push(item.name);
+                filesArr.push(item._id);
             }
             return item._id
         })
+        doc = await deleteList(mapId);
+        ctx.body = {
+            status: doc ? "success" : "error",
+            message: doc ? "删除成功" : "删除失败",
+            data: doc || []
+        }
         //磁盘删除文件
         const filePath = path.resolve(__dirname, '..') + '/static/upload/';
         filesArr.forEach(item => {
@@ -168,18 +176,76 @@ const deletefile = async (ctx) => {
                 }
             })
         })
-        doc = await deleteList(mapId);
+    }
+};
+//移动文件或者文件夹
+const movefile = async (ctx) => {
+    //改变当前移动内容的parId
+    let doc1 = await updateList({_id: {$in: ctx.request.body.movelist}}, {$set: {parId: ctx.request.body.targetId}});
+    ctx.status = 200;
+    if (!doc1) {
         ctx.body = {
-            status: doc ? "success" : "error",
-            message: doc ? "删除成功" : "删除失败",
-            data: doc || []
+            status: "error",
+            message: "移动操作失败",
+            data: []
+        }
+        return
+    }
+    //改变当前移动内容及所有所有后代的pathRoot值
+    const sliceIndex = ctx.request.body.curPath.length;
+    const pathBef = ctx.request.body.targetPath.concat(ctx.request.body.targetId);
+    let doc2 = await queryList({$or: [{_id: {$in: ctx.request.body.movelist}},{pathRoot: { $in: ctx.request.body.movelist}}]});
+    let doc;
+    for(let k = 0; k < doc2.length; k++){
+        let item = doc2[k];
+        item.pathRoot = pathBef.concat(item.pathRoot.slice(sliceIndex));
+        //新增内容，如果有相同的_id就替换
+        doc = await addList(item);
+        if (!doc) {
+            ctx.body = {
+                status: "error",
+                message: "移动部分内容失败",
+                data: []
+            }
+            return
         }
     }
+    ctx.body = {
+        status: "success",
+        message: "移动操作成功",
+        data: []
+    }
+};
+//修改名称
+const updatefile = async (ctx) => {
+    //校验数据库中是否已存在同名
+    const _id = ctx.request.body._id;
+    const name = ctx.request.body.name;
+    const type = ctx.request.body.type;
+    let validRes = await validSameName({name, type});
+    if(validRes){
+        ctx.body = validRes;
+        return
+    }
+    let doc = await updateList({_id}, {$set: {name, updateTime: new Date().getTime()}});
+    ctx.status = 200;
+    ctx.body = {
+        status: doc ? "success" : "error",
+        message: doc ? "更新名称成功" : "更新名称失败",
+        data: doc || []
+    }
+};
+//下载文件
+const downloadfile = async (ctx) => {
+    console.log(222)
 };
 
 module.exports = {
     findList,
     uploadFile,
     addFold,
-    deletefile
+    deletefile,
+    movefile,
+    updatefile,
+    downloadfile
 }
