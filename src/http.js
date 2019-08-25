@@ -8,12 +8,14 @@ var instance = axios.create({
     baseURL: 'http://localhost:3000/api/',
     timeout: 7000, //超时返回错误
     headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+    withCredentials: true //跨域配置
 });
 
 //request拦截器
 instance.interceptors.request.use(
     config => {
         config.headers['skyAuth'] = `aut${store.state.token}` //自定义header-token
+        config.headers['authId'] = `ati${store.state.userId}` //自定义header-authId
         return config;
     }
 );

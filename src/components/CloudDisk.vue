@@ -28,7 +28,7 @@
                 <el-table-column width="70">
                     <template slot-scope="scope">
                         <span><i @click="reName(scope.row)" class="el-icon-edit"></i></span>
-                        <a :download="scope.row.name" :href="`http://localhost:3000/api/downloadfile?fileId=${scope.row._id}`" v-show="scope.row.type == 'file'"><i class="el-icon-download"></i></a>
+                        <span @click="download(scope.row)" v-show="scope.row.type == 'file'"><i class="el-icon-download"></i></span>
                     </template>
                 </el-table-column>
             </el-table>
@@ -159,8 +159,14 @@
                     }).catch(err => { })
                 }).catch(() => { });
             },
-            download (id){
-                console.log(id)
+            download (file){ //下载文件
+                let link = document.createElement('a');
+                link.setAttribute("href", `http://localhost:3000/api/downloadfile?fileId=${file._id}&skyAuth=aut${this.$store.state.token}`);
+                link.setAttribute("download", file.name);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
         }
     }

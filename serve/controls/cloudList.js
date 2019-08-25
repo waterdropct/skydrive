@@ -60,14 +60,16 @@ const validSameName = async (validVal) => {
     }
 }
 //查找当前目录的所有文件和文件夹
-const findList = async (ctx) => {
+const findList = async (ctx, next) => {
+    await next();
     const query = ctx.request.query;
+    const creator = ctx.get('authId').slice(3);
     let doc = [];
     if('foldId' in query){
-        doc = await queryList({parId: query.foldId});
+        doc = await queryList({parId: query.foldId, creator});
     }
     if('foldall' in query){
-        doc = await queryList({type: 'folder'});
+        doc = await queryList({type: 'folder', creator});
     }
     ctx.status = 200;
     ctx.body = {
@@ -77,10 +79,12 @@ const findList = async (ctx) => {
     }
 };
 //处理上传文件
-const uploadFile = async (ctx) => {
+const uploadFile = async (ctx, next) => {
+    await next();
     const file = ctx.request.files.file;
+    const creator = ctx.get('authId').slice(3);
     //校验数据库中是否已存在同名
-    let validRes = await validSameName({parId: ctx.request.body.foldId, name: file.name, type: 'file'});
+    let validRes = await validSameName({parId: ctx.request.body.foldId, name: file.name, type: 'file', creator});
     if(validRes){
         ctx.body = validRes;
         return
@@ -91,7 +95,8 @@ const uploadFile = async (ctx) => {
         size: file.size,
         updateTime: new Date().getTime(),
         parId: ctx.request.body.foldId,
-        pathRoot: ctx.request.body.pathRoot.split(",")
+        pathRoot: ctx.request.body.pathRoot.split(","),
+        creator
     }
     let doc = await addList(newFile);
     ctx.status = 200;
@@ -109,11 +114,13 @@ const uploadFile = async (ctx) => {
     }
 };
 //新建文件夹
-const addFold = async (ctx) => {
+const addFold = async (ctx, next) => {
+    await next();
     const foldname = ctx.request.body.foldname;
+    const creator = ctx.get('authId').slice(3);
     if(foldname && foldname.match(/^[(\u4e00-\u9fa5)|(a-zA-Z0-9)]+$/)){ //为保证可靠性后台需要校验
         //校验数据库中是否已存在同名
-        let validRes = await validSameName({parId: ctx.request.body.parId, name: foldname, type: 'folder'});
+        let validRes = await validSameName({parId: ctx.request.body.parId, name: foldname, type: 'folder', creator});
         if(validRes){
             ctx.body = validRes;
             return
@@ -124,7 +131,8 @@ const addFold = async (ctx) => {
             size: '-',
             updateTime: new Date().getTime(),
             parId: ctx.request.body.parId,
-            pathRoot: ctx.request.body.pathRoot
+            pathRoot: ctx.request.body.pathRoot,
+            creator
         }
         let doc = await addList(newFold);
         ctx.status = 200;
@@ -143,7 +151,8 @@ const addFold = async (ctx) => {
     }
 };
 //删除文件或者文件夹
-const deletefile = async (ctx) => {
+const deletefile = async (ctx, next) => {
+    await next();
     //查找当前目录的删除内容 -- 查找当前目录被删除目录的所有后代文件和文件夹
     let doc = await queryList({$or: [{_id: {$in: ctx.request.body.deletelist}},{pathRoot: { $in: ctx.request.body.deletelist}}]});
     ctx.status = 200;
@@ -179,7 +188,8 @@ const deletefile = async (ctx) => {
     }
 };
 //移动文件或者文件夹
-const movefile = async (ctx) => {
+const movefile = async (ctx, next) => {
+    await next();
     //改变当前移动内容的parId
     let doc1 = await updateList({_id: {$in: ctx.request.body.movelist}}, {$set: {parId: ctx.request.body.targetId}});
     ctx.status = 200;
@@ -217,7 +227,8 @@ const movefile = async (ctx) => {
     }
 };
 //修改名称
-const updatefile = async (ctx) => {
+const updatefile = async (ctx, next) => {
+    await next();
     //校验数据库中是否已存在同名
     const _id = ctx.request.body._id;
     const name = ctx.request.body.name;
@@ -236,8 +247,22 @@ const updatefile = async (ctx) => {
     }
 };
 //下载文件
-const downloadfile = async (ctx) => {
-    console.log(222)
+const downloadfile = async (ctx, next) => {
+    await next();
+    ctx.status = 200;
+    let doc = await queryList({_id: ctx.request.query.fileId});
+    if(doc && doc.length > 0){
+        const filePath = path.resolve(__dirname, '..') + '/static/upload/';
+        const reader = fs.createReadStream(filePath + doc[0]._id);
+        ctx.set('Content-disposition',`attachment;filename=${encodeURI(doc[0].name)}`); //涉及到中文需要编码
+        ctx.body = reader // 返回在响应体里
+        return
+    }
+    ctx.body = {
+        status: "error",
+        message: "文件不存在",
+        data: []
+    }
 };
 
 module.exports = {

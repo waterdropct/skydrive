@@ -3,18 +3,19 @@ const jwt = require('jsonwebtoken');//token中间件
 const createToken = user => {
     const token = jwt.sign(
         {
-            user: user, iat: Math.floor(Date.now() / 1000) - 30
+            user: user
         },
         'skydrivelhc',
         {
-            expiresIn: 1000 * 60 * 10
+            expiresIn: '10m'
         }
     );
     return token;
 }
 //校验token
 const checkToken = async (ctx, next) => {
-    const authToken = ctx.get('skyAuth');
+    await next();
+    const authToken = ctx.get('skyAuth') || ctx.request.query.skyAuth;
     if (!authToken) {
         ctx.status = 401;
         ctx.body = {
@@ -34,7 +35,6 @@ const checkToken = async (ctx, next) => {
         };
         return
     }
-    await next();
 }
 
 module.exports = {

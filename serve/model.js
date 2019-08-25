@@ -16,7 +16,8 @@ const listSchema = new Schema({
     size: String,
     updateTime: String,
     parId: String,
-    pathRoot: Array
+    pathRoot: Array,
+    creator: String
 });
 const cloudlist = mongoose.model('cloudlist', listSchema);
 module.exports = {

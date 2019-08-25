@@ -3,7 +3,7 @@
         <div title="" class="cloud__upload"><input name="file" value="upload" @change="uploadFile($event)" type="file" /></div>
         <el-button type="primary" size="small" icon="el-icon-upload">上传</el-button>
         <el-button type="primary" size="small" icon="el-icon-folder-add" @click="addFolder" plain>新建文件夹</el-button>
-        <el-button type="warning" size="small" icon="el-icon-goods">回收站</el-button>
+        <!-- <el-button type="warning" size="small" icon="el-icon-goods">回收站</el-button> -->
         <div v-show="showEditMenu" class="diskMenu__edit">
             <el-button-group>
                 <el-tooltip class="item" effect="dark" content="移动到" placement="bottom">
@@ -99,8 +99,8 @@
             uploadFile: function (e) { //上传文件
                 const document = e.target;
                 const file = document.files[0];
-                if (file.size > 2 * 1000 * 1000) {
-                    messageShow('error', '文件大小不能超过2M');
+                if (file.size > 10 * 1000 * 1000) {
+                    messageShow('error', '文件大小不能超过10M');
                     return
                 }
                 let _this = this;
@@ -112,6 +112,7 @@
                 let xhr = new XMLHttpRequest();
                 xhr.open('post', 'http://localhost:3000/api/uploadfile');
                 xhr.setRequestHeader('skyAuth', `aut${store.state.token}`); //涉及到认证，需要自定义header头部
+                xhr.setRequestHeader('authId', `aut${store.state.userId}`); //自定义header头部
                 xhr.onreadystatechange = function (e) {
                     if (xhr.readyState == 4 && xhr.status == 200) {
                         const response = JSON.parse(xhr.responseText);
@@ -120,7 +121,7 @@
                         document.value = ""; //需要清除value，否则第二次选择同样文件时无反应
                     }
                     if (xhr.readyState == 4 && xhr.status !== 200) {
-                        messageShow('error', '上传失败：' + e.target.statusText, _this);
+                        messageShow('error', '上传失败', _this);
                         document.value = "";
                     }
                 };

@@ -13,17 +13,23 @@ const findUser = (username) => {
         });
     });
 };
-//添加账号密码专用操作
-// const addUser = (name, pwd) => {
-//     var newData = new user({name: name, pwd: pwd, createTime: new Date().getTime()});
-//     newData.save(function(){});
-// }
+//添加账户
+const addUser = (name, pwd) => {
+    return new Promise((resolve, reject) => {
+        var newData = new user({name: name, pwd: pwd, createTime: new Date().getTime()});
+        newData.save((err, doc) => {
+            if (err) {
+                reject(err);
+            }
+            resolve(doc);
+        });
+    });
+}
 //登录
-const login = async (ctx) => {
+const login = async (ctx, next) => {
     //拿到账号和密码
     const username = ctx.request.body.name;
     const password = sha1(ctx.request.body.pwd);
-    //addUser(username, password);
     const doc = await findUser(username);
     ctx.status = 200;
     if (!doc) {
@@ -42,11 +48,38 @@ const login = async (ctx) => {
         ctx.body = {
             status: "success",
             message: "登陆成功",
-            token,
+            data: {
+                userName: doc.name,
+                userId: doc._id,
+                token
+            }
         };
     }
+    next();
+};
+//注册
+const register = async (ctx, next) => {
+    //拿到账号和密码
+    const username = ctx.request.body.name;
+    const password = sha1(ctx.request.body.pwd);
+    let doc = await findUser(username);
+    ctx.status = 200;
+    if (!doc) {
+        doc = addUser(username, password);
+        ctx.body = {
+            status: doc ? "success" : "error",
+            message: doc ? "注册成功" : "注册失败"
+        }
+    }else{
+        ctx.body = {
+            status: "error",
+            message: "用户已存在"
+        };
+    }
+    next();
 };
 
 module.exports = {
-    login
+    login,
+    register
 }
